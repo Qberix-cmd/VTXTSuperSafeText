@@ -57,8 +57,9 @@ Returns the **core library version** as a string (e.g., `"3.1.0"`).
 
 ---
 
-## Usage in C++
+## Usage Examples
 
+### C++ Example
 ```cpp
 #include <iostream>
 #include <vector>
@@ -97,8 +98,7 @@ int main() {
 
 ---
 
-## Usage in C#
-
+### C# Example
 ```csharp
 using System;
 using System.Runtime.InteropServices;
@@ -140,6 +140,83 @@ class Program
             else
             {
                 Console.WriteLine("Wrong password or corrupted data");
+            }
+        }
+    }
+}
+```
+
+---
+
+### Python Example (ctypes)
+```python
+import ctypes
+
+lib = ctypes.CDLL("VTXTSuperSafeText.dll")
+
+VTXTSuperSafeText_Encrypt = lib.VTXTSuperSafeText_Encrypt
+VTXTSuperSafeText_Encrypt.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+VTXTSuperSafeText_Encrypt.restype = ctypes.c_int
+
+VTXTSuperSafeText_Decrypt = lib.VTXTSuperSafeText_Decrypt
+VTXTSuperSafeText_Decrypt.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
+VTXTSuperSafeText_Decrypt.restype = ctypes.c_void_p
+
+VTXTSuperSafeText_FreeMemory = lib.VTXTSuperSafeText_FreeMemory
+VTXTSuperSafeText_FreeMemory.argtypes = [ctypes.c_void_p]
+
+password = b"test123"
+message = b"Hello world!"
+encrypted = ctypes.create_string_buffer(1024)
+
+enc_len = VTXTSuperSafeText_Encrypt(message, len(message), password, encrypted, 1024)
+print("Encrypted length:", enc_len)
+
+if enc_len > 0:
+    out_len = ctypes.c_int()
+    ptr = VTXTSuperSafeText_Decrypt(encrypted.raw, enc_len, password, ctypes.byref(out_len))
+    if ptr:
+        data = ctypes.string_at(ptr, out_len.value)
+        print("Decrypted:", data.decode("utf-8"))
+        VTXTSuperSafeText_FreeMemory(ptr)
+    else:
+        print("Wrong password or corrupted data")
+```
+
+---
+
+### Java Example (JNA)
+```java
+import com.sun.jna.*;
+import com.sun.jna.ptr.IntByReference;
+
+public class Main {
+    public interface VTXTLib extends Library {
+        VTXTLib INSTANCE = Native.load("VTXTSuperSafeText", VTXTLib.class);
+        int VTXTSuperSafeText_Encrypt(byte[] input, int inputLen, String password, byte[] output, int maxLen);
+        Pointer VTXTSuperSafeText_Decrypt(byte[] data, int length, String password, IntByReference outPlainLen);
+        void VTXTSuperSafeText_FreeMemory(Pointer ptr);
+    }
+
+    public static void main(String[] args) {
+        String password = "test123";
+        String message = "Hello world!";
+        byte[] plainBytes = message.getBytes();
+        byte[] encrypted = new byte[1024];
+
+        int encLen = VTXTLib.INSTANCE.VTXTSuperSafeText_Encrypt(plainBytes, plainBytes.length, password, encrypted, encrypted.length);
+        System.out.println("Encrypted length: " + encLen);
+
+        if (encLen > 0) {
+            IntByReference plainLen = new IntByReference();
+            Pointer ptr = VTXTLib.INSTANCE.VTXTSuperSafeText_Decrypt(encrypted, encLen, password, plainLen);
+            if (ptr != null) {
+                byte[] plainOut = ptr.getByteArray(0, plainLen.getValue());
+                String decrypted = new String(plainOut);
+                System.out.println("Decrypted: " + decrypted);
+                VTXTLib.INSTANCE.VTXTSuperSafeText_FreeMemory(ptr);
+            } else {
+                System.out.println("Wrong password or corrupted data");
             }
         }
     }
