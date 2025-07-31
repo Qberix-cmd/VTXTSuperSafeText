@@ -1,96 +1,123 @@
-# VTXTSuperSafeText Library Usage Guide
+# VTXTSuperSafeText
 
-## Overview
-The **VTXTSuperSafeText** library provides functions for encrypting and decrypting text using AES-256-CBC with PBKDF2 key derivation.  
-It is implemented as a native C++ DLL and can be used from multiple languages via FFI (Foreign Function Interface).
+VTXTSuperSafeText is an **open-source** high-security text encryption library written in C++ using OpenSSL.  
+It supports **AES‑256‑CBC** encryption with PBKDF2 key derivation and a custom binary format:  
 
----
+```
+[HEADER:4 bytes] [VERSION:4 bytes] [SALT:16 bytes] [IV:16 bytes] [CIPHERTEXT:variable]
+```
 
-## Functions
+The library is cross-platform (Windows / Linux / macOS) and can be used from **C++**, **C#**, **Python**, **Java**, and other languages that support native libraries.
 
-### `int VTXTSuperSafeText_Encrypt(const unsigned char* input, int inputLen, const char* password, unsigned char* output, int maxLen)`
-Encrypts raw data.
-
-- **Parameters**
-  - `input`: Pointer to the input data (plain text or bytes).
-  - `inputLen`: Length of the input in bytes.
-  - `password`: Null-terminated UTF-8 password.
-  - `output`: Buffer to store the encrypted data.
-  - `maxLen`: Maximum size of the output buffer.
-- **Returns**
-  - Length of the encrypted data on success.
-  - Negative value on failure.
+Licensed under the **MIT License**.
 
 ---
 
-### `unsigned char* VTXTSuperSafeText_Decrypt(const unsigned char* data, int length, const char* password, int* outPlainLen)`
-Decrypts encrypted data.
-
-- **Parameters**
-  - `data`: Pointer to the encrypted data.
-  - `length`: Length of the encrypted data in bytes.
-  - `password`: Null-terminated UTF-8 password.
-  - `outPlainLen`: Pointer to an integer to store the plaintext length.
-- **Returns**
-  - Pointer to the allocated plaintext buffer (must be freed with `VTXTSuperSafeText_FreeMemory`).
-  - `nullptr` if decryption fails.
+## Features
+- AES‑256‑CBC encryption with PKCS#5 padding.
+- PBKDF2-HMAC-SHA256 key derivation (500,000 iterations).
+- Custom binary header with versioning.
+- Open-source and cross-platform.
+- API designed for multi-language usage.
 
 ---
 
-### `void VTXTSuperSafeText_FreeMemory(unsigned char* ptr)`
-Frees memory allocated by `VTXTSuperSafeText_Decrypt`.
+## Download
+
+Prebuilt binaries are available on the **[GitHub Releases](https://github.com/yourusername/VTXTSuperSafeText/releases/latest)** page.
+
+**Example:**
+- Windows: `VTXTSuperSafeText.dll`
+- Linux: `libVTXTSuperSafeText.so`
+- macOS: `libVTXTSuperSafeText.dylib`
+
+> For smallest size, files are compressed in `.7z` format. Extract using [7-Zip](https://www.7-zip.org/) or WinRAR.
 
 ---
 
-### `int VTXTSuperSafeText_GetVersion(const unsigned char* data, int length)`
-Reads the **data format version** from an encrypted buffer.
+## Build from source
+
+### Requirements
+- CMake 3.10+
+- OpenSSL development libraries
+- C++17 compiler
+
+### Build steps
+```bash
+git clone https://github.com/yourusername/VTXTSuperSafeText.git
+cd VTXTSuperSafeText
+mkdir build && cd build
+cmake ..
+cmake --build . --config Release
+```
 
 ---
 
-### `unsigned int VTXTSuperSafeText_GetCoreVersion()`
-Returns the **core library version** as a packed integer (Major<<16 | Minor<<8 | Patch).
+## API
 
----
+### Encrypt
+```cpp
+int VTXTSuperSafeText_Encrypt(
+    const unsigned char* input,
+    int inputLen,
+    const char* password,
+    unsigned char* output,
+    int maxLen
+);
+```
+Returns the total output length, or a negative value on error.
 
-### `const char* VTXTSuperSafeText_GetCoreVersionString()`
-Returns the **core library version** as a string (e.g., `"3.1.0"`).
+### Decrypt
+```cpp
+unsigned char* VTXTSuperSafeText_Decrypt(
+    const unsigned char* data,
+    int length,
+    const char* password,
+    int* outPlainLen
+);
+```
+Returns allocated plaintext buffer. Must be freed with `VTXTSuperSafeText_FreeMemory`.
+
+### Free memory
+```cpp
+void VTXTSuperSafeText_FreeMemory(unsigned char* ptr);
+```
+
+### Get version
+```cpp
+int VTXTSuperSafeText_GetVersion(const unsigned char* data, int length);
+```
 
 ---
 
 ## Usage Examples
 
-### C++ Example
+### C++
 ```cpp
-#include <iostream>
+#include "VTXTSuperSafeText.h"
 #include <vector>
-#include "VTXTSuperSafeText.h" // header for your DLL
+#include <iostream>
 
 int main() {
-    const char* password = "test123";
-    const char* message = "Hello world!";
-    unsigned char encrypted[1024];
+    const char* text = "Hello World!";
+    const char* password = "mypassword";
+    std::vector<unsigned char> encrypted(1024);
 
-    // Encrypt
     int encLen = VTXTSuperSafeText_Encrypt(
-        (const unsigned char*)message,
-        strlen(message),
-        password,
-        encrypted,
-        sizeof(encrypted)
+        (const unsigned char*)text, strlen(text),
+        password, encrypted.data(), encrypted.size()
     );
 
     if (encLen > 0) {
-        std::cout << "Encrypted length: " << encLen << "\n";
-
-        // Decrypt
         int plainLen = 0;
-        unsigned char* decrypted = VTXTSuperSafeText_Decrypt(encrypted, encLen, password, &plainLen);
+        unsigned char* decrypted = VTXTSuperSafeText_Decrypt(
+            encrypted.data(), encLen, password, &plainLen
+        );
+
         if (decrypted) {
-            std::string plainText((char*)decrypted, plainLen);
-            std::cout << "Decrypted: " << plainText << "\n";
+            std::string result((char*)decrypted, plainLen);
+            std::cout << "Decrypted: " << result << "\n";
             VTXTSuperSafeText_FreeMemory(decrypted);
-        } else {
-            std::cout << "Wrong password or corrupted data\n";
         }
     }
 }
@@ -98,138 +125,91 @@ int main() {
 
 ---
 
-### C# Example
+### C# (P/Invoke)
 ```csharp
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
+[DllImport("VTXTSuperSafeText.dll", CallingConvention = CallingConvention.Cdecl)]
+public static extern int VTXTSuperSafeText_Encrypt(
+    byte[] input, int inputLen,
+    string password,
+    byte[] output, int maxLen
+);
 
-class Program
-{
-    [DllImport("VTXTSuperSafeText.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int VTXTSuperSafeText_Encrypt(byte[] input, int inputLen, string password, byte[] output, int maxLen);
+[DllImport("VTXTSuperSafeText.dll", CallingConvention = CallingConvention.Cdecl)]
+public static extern IntPtr VTXTSuperSafeText_Decrypt(
+    byte[] data, int length,
+    string password,
+    out int outPlainLen
+);
 
-    [DllImport("VTXTSuperSafeText.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern IntPtr VTXTSuperSafeText_Decrypt(byte[] data, int length, string password, out int outPlainLen);
+[DllImport("VTXTSuperSafeText.dll", CallingConvention = CallingConvention.Cdecl)]
+public static extern void VTXTSuperSafeText_FreeMemory(IntPtr ptr);
 
-    [DllImport("VTXTSuperSafeText.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern void VTXTSuperSafeText_FreeMemory(IntPtr ptr);
+// Example usage
+byte[] plain = Encoding.UTF8.GetBytes("Hello World!");
+byte[] encrypted = new byte[1024];
+int encLen = VTXTSuperSafeText_Encrypt(plain, plain.Length, "mypassword", encrypted, encrypted.Length);
 
-    static void Main()
-    {
-        string password = "test123";
-        string message = "Hello world!";
-        byte[] plainBytes = Encoding.UTF8.GetBytes(message);
-        byte[] encrypted = new byte[1024];
-
-        int encLen = VTXTSuperSafeText_Encrypt(plainBytes, plainBytes.Length, password, encrypted, encrypted.Length);
-        Console.WriteLine("Encrypted length: " + encLen);
-
-        if (encLen > 0)
-        {
-            int plainLen;
-            IntPtr ptr = VTXTSuperSafeText_Decrypt(encrypted, encLen, password, out plainLen);
-            if (ptr != IntPtr.Zero)
-            {
-                byte[] plainOut = new byte[plainLen];
-                Marshal.Copy(ptr, plainOut, 0, plainLen);
-                string decrypted = Encoding.UTF8.GetString(plainOut);
-                Console.WriteLine("Decrypted: " + decrypted);
-                VTXTSuperSafeText_FreeMemory(ptr);
-            }
-            else
-            {
-                Console.WriteLine("Wrong password or corrupted data");
-            }
-        }
-    }
+IntPtr ptr = VTXTSuperSafeText_Decrypt(encrypted, encLen, "mypassword", out int plainLen);
+if (ptr != IntPtr.Zero) {
+    byte[] plainOut = new byte[plainLen];
+    Marshal.Copy(ptr, plainOut, 0, plainLen);
+    string result = Encoding.UTF8.GetString(plainOut);
+    Console.WriteLine("Decrypted: " + result);
+    VTXTSuperSafeText_FreeMemory(ptr);
 }
 ```
 
 ---
 
-### Python Example (ctypes)
+### Python (ctypes)
 ```python
 import ctypes
 
-lib = ctypes.CDLL("VTXTSuperSafeText.dll")
+lib = ctypes.CDLL("./VTXTSuperSafeText.dll")
+lib.VTXTSuperSafeText_Encrypt.argtypes = [
+    ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p,
+    ctypes.c_char_p, ctypes.c_int
+]
 
-VTXTSuperSafeText_Encrypt = lib.VTXTSuperSafeText_Encrypt
-VTXTSuperSafeText_Encrypt.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
-VTXTSuperSafeText_Encrypt.restype = ctypes.c_int
+lib.VTXTSuperSafeText_Decrypt.argtypes = [
+    ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p,
+    ctypes.POINTER(ctypes.c_int)
+]
+lib.VTXTSuperSafeText_Decrypt.restype = ctypes.c_void_p
 
-VTXTSuperSafeText_Decrypt = lib.VTXTSuperSafeText_Decrypt
-VTXTSuperSafeText_Decrypt.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int)]
-VTXTSuperSafeText_Decrypt.restype = ctypes.c_void_p
+lib.VTXTSuperSafeText_FreeMemory.argtypes = [ctypes.c_void_p]
 
-VTXTSuperSafeText_FreeMemory = lib.VTXTSuperSafeText_FreeMemory
-VTXTSuperSafeText_FreeMemory.argtypes = [ctypes.c_void_p]
-
-password = b"test123"
-message = b"Hello world!"
+text = b"Hello World!"
+password = b"mypassword"
 encrypted = ctypes.create_string_buffer(1024)
 
-enc_len = VTXTSuperSafeText_Encrypt(message, len(message), password, encrypted, 1024)
-print("Encrypted length:", enc_len)
+enc_len = lib.VTXTSuperSafeText_Encrypt(text, len(text), password, encrypted, len(encrypted))
 
-if enc_len > 0:
-    out_len = ctypes.c_int()
-    ptr = VTXTSuperSafeText_Decrypt(encrypted.raw, enc_len, password, ctypes.byref(out_len))
-    if ptr:
-        data = ctypes.string_at(ptr, out_len.value)
-        print("Decrypted:", data.decode("utf-8"))
-        VTXTSuperSafeText_FreeMemory(ptr)
-    else:
-        print("Wrong password or corrupted data")
+out_len = ctypes.c_int()
+ptr = lib.VTXTSuperSafeText_Decrypt(encrypted, enc_len, password, ctypes.byref(out_len))
+
+if ptr:
+    buf = ctypes.create_string_buffer(out_len.value)
+    ctypes.memmove(buf, ptr, out_len.value)
+    print("Decrypted:", buf.raw.decode())
+    lib.VTXTSuperSafeText_FreeMemory(ptr)
 ```
 
 ---
 
-### Java Example (JNA)
+### Java (JNI)
 ```java
-import com.sun.jna.*;
-import com.sun.jna.ptr.IntByReference;
-
-public class Main {
-    public interface VTXTLib extends Library {
-        VTXTLib INSTANCE = Native.load("VTXTSuperSafeText", VTXTLib.class);
-        int VTXTSuperSafeText_Encrypt(byte[] input, int inputLen, String password, byte[] output, int maxLen);
-        Pointer VTXTSuperSafeText_Decrypt(byte[] data, int length, String password, IntByReference outPlainLen);
-        void VTXTSuperSafeText_FreeMemory(Pointer ptr);
+public class VTXT {
+    static {
+        System.loadLibrary("VTXTSuperSafeText");
     }
-
-    public static void main(String[] args) {
-        String password = "test123";
-        String message = "Hello world!";
-        byte[] plainBytes = message.getBytes();
-        byte[] encrypted = new byte[1024];
-
-        int encLen = VTXTLib.INSTANCE.VTXTSuperSafeText_Encrypt(plainBytes, plainBytes.length, password, encrypted, encrypted.length);
-        System.out.println("Encrypted length: " + encLen);
-
-        if (encLen > 0) {
-            IntByReference plainLen = new IntByReference();
-            Pointer ptr = VTXTLib.INSTANCE.VTXTSuperSafeText_Decrypt(encrypted, encLen, password, plainLen);
-            if (ptr != null) {
-                byte[] plainOut = ptr.getByteArray(0, plainLen.getValue());
-                String decrypted = new String(plainOut);
-                System.out.println("Decrypted: " + decrypted);
-                VTXTLib.INSTANCE.VTXTSuperSafeText_FreeMemory(ptr);
-            } else {
-                System.out.println("Wrong password or corrupted data");
-            }
-        }
-    }
+    public native int VTXTSuperSafeText_Encrypt(byte[] input, int inputLen, String password, byte[] output, int maxLen);
+    public native long VTXTSuperSafeText_Decrypt(byte[] data, int length, String password, int[] outPlainLen);
+    public native void VTXTSuperSafeText_FreeMemory(long ptr);
 }
 ```
 
 ---
 
-## Notes
-- Always use UTF-8 encoding for passwords and plaintext.
-- The output of `Encrypt` includes:
-  ```
-  HEADER (4 bytes) + VERSION (4 bytes) + SALT (16 bytes) + IV (16 bytes) + CIPHERTEXT (N bytes)
-  ```
-- If the format changes in the future, `VTXTSuperSafeText_GetVersion` will help identify which version to use for decryption.
-- This library is **not thread-safe** unless you handle locking externally.
+## License
+MIT License – see [LICENSE](LICENSE) for details.
